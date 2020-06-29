@@ -1,5 +1,4 @@
 import requests
-
 import keyboard
 from pykakasi import kakasi, wakati
 from ssl import SSLWantReadError
@@ -55,9 +54,9 @@ def initial_search(search_term):
     example_sentence = choose_example_sentence(example_sentence_list)
     example_jap = example_sentence[0]
     example_eng = example_sentence[1]
-    example_jap_kana = KAKASI_CONVERTER.do(example_jap)
-    example_jap_kana_token = WAKATI_CONVERTER.do(example_jap_kana)
-    print(kanji, kana, romaji, term_definition, example_jap, example_eng, example_jap_kana_token)
+    example_jap_token = WAKATI_CONVERTER.do(example_jap)
+    example_jap_kana = KAKASI_CONVERTER.do(example_jap_token)
+    prepare_info_hotkey([kanji, kana, romaji, term_definition, example_jap, example_eng, example_jap_kana])
 
 
 def choose_search_term(terms):
@@ -101,6 +100,19 @@ def choose_example_sentence(example_sentences):
         print("Please enter a valid entry number")
         return choose_search_term(example_sentences)
     return example_sentences[response - 1]
+
+
+def prepare_info_hotkey(info):
+
+    def write_info(entry):
+        keyboard.write(entry)
+        keyboard.press_and_release('tab')
+
+    for i in info:
+        print("Press f1 to paste: " + i)
+        keyboard.add_hotkey('f1', lambda: write_info(i))
+        keyboard.wait('f1')
+        keyboard.unregister_all_hotkeys()
 
 
 def main_loop():
