@@ -1,9 +1,9 @@
 import re
+from ssl import SSLWantReadError
 
 import requests
 import keyboard
 from pykakasi import kakasi, wakati
-from ssl import SSLWantReadError
 from bs4 import BeautifulSoup
 
 REQUEST_SESSION = requests.session()
@@ -14,7 +14,36 @@ WAKATI = wakati()
 WAKATI_CONVERTER = WAKATI.getConverter()
 
 
+def get_relevant_data(result_page):
+    """Grabs the relevant information from the term's dictionary page and passes it to the hotkey function to be pasted into Anki."""
+    kanji = result_page.find("div", class_="jp").text.replace("·", "")
+    kanji = re.sub("(\(.{1,3}\))", "", kanji)
+    kana = result_page.find("div", class_="furigana").text.replace("[", "").replace("]", "").replace("·", "")
+    kana = re.sub("(\(.{1,3}\))", "", kana)
+    romaji = result_page.find("div", class_="romaji hide").text
+    term_definition = result_page.find("div", class_="en").find("ol").text.rstrip().lstrip()
+    try:
+        example_sentences = result_page.find("div", id="idSampleSentences").find_all("div", class_="sm")
+    except AttributeError:
+        print("No example sentences available.")
+        prepare_info_hotkey([kanji, kana, romaji, term_definition])
+    else:
+        example_sentence_list = []
+        for i in example_sentences:
+            jap = i.find("div", class_="jp").text
+            eng = i.find("div", class_="en").text
+            example_sentence_list.append([jap, eng])
+        example_sentence = choose_example_sentence(example_sentence_list)
+        example_jap = example_sentence[0]
+        example_eng = example_sentence[1]
+        example_jap_token = WAKATI_CONVERTER.do(example_jap)
+        example_jap_kana = KAKASI_CONVERTER.do(example_jap_token)
+        prepare_info_hotkey([kanji, kana, romaji, term_definition, example_jap, example_eng, example_jap_kana])
+
+
 def initial_search(search_term):
+    """Given a search term or a tanoshiijapense.com search entry link scrape the data from the web page, asking the user to choose the correct term if there are multiple results. Scraped info is
+     passed to a function that pulls the desired data from the page."""
     if "tanoshii" not in search_term:
         search_term = 'https://www.tanoshiijapanese.com/dictionary/index.cfm?j=' + search_term
     try:
@@ -45,28 +74,11 @@ def initial_search(search_term):
         if not result_soup:
             return
     filtered_soup = result_soup.find("div", id="cncontentbody")
-    kanji = filtered_soup.find("div", class_="jp").text.replace("·", "")
-    kanji = re.sub("(\(.{1,3}\))", "", kanji)
-    kana = filtered_soup.find("div", class_="furigana").text.replace("[", "").replace("]", "").replace("·", "")
-    kana = re.sub("(\(.{1,3}\))", "", kana)
-    romaji = filtered_soup.find("div", class_="romaji hide").text
-    term_definition = filtered_soup.find("div", class_="en").find("ol").text.rstrip().lstrip()
-    print(kanji, kana, romaji)
-    example_sentences = filtered_soup.find("div", id="idSampleSentences").find_all("div", class_="sm")
-    example_sentence_list = []
-    for i in example_sentences:
-        jap = i.find("div", class_="jp").text
-        english = i.find("div", class_="en").text
-        example_sentence_list.append([jap, english])
-    example_sentence = choose_example_sentence(example_sentence_list)
-    example_jap = example_sentence[0]
-    example_eng = example_sentence[1]
-    example_jap_token = WAKATI_CONVERTER.do(example_jap)
-    example_jap_kana = KAKASI_CONVERTER.do(example_jap_token)
-    prepare_info_hotkey([kanji, kana, romaji, term_definition, example_jap, example_eng, example_jap_kana])
+    get_relevant_data(filtered_soup)
 
 
 def choose_search_term(terms):
+    """Prints the available term options and asks the user to choose which one to proceed with. Returns the chosen data."""
     print("Which term do you want?\n\n")
     for count, i in enumerate(terms):
         print(str(count + 1) + ": " + i[0] + "\n" + i[1])
@@ -94,6 +106,7 @@ def choose_search_term(terms):
 
 
 def choose_example_sentence(example_sentences):
+    """Prints the available example sentences and asks the user to choose which one to proceed with. Returns the chosen data."""
     print("Choose an example sentence: \n\n")
     for count, i in enumerate(example_sentences):
         print(str(count + 1) + ': ' + i[0] + "\n" + i[1] + "\n")
@@ -110,6 +123,7 @@ def choose_example_sentence(example_sentences):
 
 
 def prepare_info_hotkey(info):
+    """Given a list of information pulled from the search term web page set the information to be pasted into Anki one piece at a time at the press of the specified hotkey."""
 
     def write_info(entry):
         keyboard.write(entry)
@@ -124,6 +138,7 @@ def prepare_info_hotkey(info):
 
 
 def main_loop():
+    """Funtion to run on startup that asks the user to provide a search term. Loops on completion."""
     response = input("Enter a search term")
     initial_search(response)
     main_loop()
