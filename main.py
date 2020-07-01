@@ -1,4 +1,5 @@
 import re
+import sys
 from ssl import SSLWantReadError
 
 import requests
@@ -19,9 +20,12 @@ def get_relevant_data(result_page):
      function to be pasted into Anki."""
     kanji = result_page.find("div", class_="jp").text.replace("·", "")
     kanji = re.sub("(\(.{1,3}\))", "", kanji)
-    kana = result_page.find(
-        "div", class_="furigana").text.replace("[", "").replace("]", "").replace("·", "")
-    kana = re.sub("(\(.{1,3}\))", "", kana)
+    try:
+        kana = result_page.find(
+            "div", class_="furigana").text.replace("[", "").replace("]", "").replace("·", "")
+        kana = re.sub("(\(.{1,3}\))", "", kana)
+    except AttributeError:
+        kana = kanji
     romaji = result_page.find("div", class_="romaji hide").text
     term_definition = result_page.find("div", class_="en").find("ol").text.rstrip().lstrip()
     try:
@@ -80,7 +84,7 @@ def initial_search(search_term):
             entries_list.append([term, definition, entry_link])
         result_soup = BeautifulSoup(choose_search_term(entries_list).text, "html.parser")
         if not result_soup:
-            return
+            return False
     filtered_soup = result_soup.find("div", id="cncontentbody")
     get_relevant_data(filtered_soup)
 
@@ -152,6 +156,9 @@ def main_loop():
     """Funtion to run on startup that asks the user to provide a search term.
      Loops on completion."""
     response = input("Enter a search term")
+    if response.lower() in ['exit', 'quit']:
+        print("Closing Program.")
+        sys.exit()
     initial_search(response)
     main_loop()
 
