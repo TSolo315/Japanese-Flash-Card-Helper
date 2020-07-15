@@ -129,10 +129,10 @@ def choose_example_sentence(example_sentences):
         response = int(response)
     except ValueError:
         print("Please enter a valid entry number")
-        return choose_search_term(example_sentences)
+        return choose_example_sentence(example_sentences)
     if response <= 0 or response > len(example_sentences):
         print("Please enter a valid entry number")
-        return choose_search_term(example_sentences)
+        return choose_example_sentence(example_sentences)
     return example_sentences[response - 1]
 
 
